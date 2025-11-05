@@ -15,21 +15,17 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : AppCompatActivity() {
-    lateinit var edt1: EditText
-    lateinit var edt2: EditText
-    lateinit var edt3: EditText
-    lateinit var btn1: Button
-    lateinit var btn2: Button
-    lateinit var btn3: Button
-    lateinit var btn4: Button
-    lateinit var btn5: Button
-    lateinit var btn6: Button
-    lateinit var datosArray: Array<String?>
-    //Componentes del SQL
-    var adminSQLite: AdminSQLite? = null
-    var conector: SQLiteDatabase? = null
-    var datos: ContentValues? = null
-    var fila: Cursor? = null
+    private lateinit var edt1: EditText
+    private lateinit var edt2: EditText
+    private lateinit var edt3: EditText
+    private lateinit var btn1: Button
+    private lateinit var btn2: Button
+    private lateinit var btn3: Button
+    private lateinit var btn4: Button
+    private lateinit var btn5: Button
+    private lateinit var btn6: Button
+
+    private var datosArray: Array<String?> = arrayOfNulls(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +37,17 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        inicializarVistas()
+
+        btn1.setOnClickListener { guardarAlumno() }
+        btn2.setOnClickListener { crearAlertDialog() }
+        btn3.setOnClickListener { eliminarAlumno() }
+        btn4.setOnClickListener { actualizarAlumno() }
+        btn5.setOnClickListener { consultarAlumno() }
+        btn6.setOnClickListener { consultarAlumnoClass() }
+    }
+
+    private fun inicializarVistas() {
         edt1 = findViewById(R.id.edtext1)
         edt2 = findViewById(R.id.edtext2)
         edt3 = findViewById(R.id.edtext3)
@@ -50,140 +57,200 @@ class MainActivity : AppCompatActivity() {
         btn4 = findViewById(R.id.btn4)
         btn5 = findViewById(R.id.btn5)
         btn6 = findViewById(R.id.btn6)
-        //Boton de guardar datos
-        btn1.setOnClickListener {
-            // Guardar alumno
-            datos = ContentValues().apply {
-                put("matricula", edt1.text.toString())
-                put("nombre", edt2.text.toString())
-                put("carrera",edt3.text.toString())
+    }
+
+    private fun guardarAlumno() {
+        val matricula = edt1.text.toString()
+        val nombre = edt2.text.toString()
+        val carrera = edt3.text.toString()
+
+        if (matricula.isBlank() || nombre.isBlank() || carrera.isBlank()) {
+            Toast.makeText(this, "Complete todos los campos", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val datos = ContentValues().apply {
+            put("matricula", matricula)
+            put("nombre", nombre)
+            put("carrera", carrera)
+        }
+
+        val adminSQLite = AdminSQLite(this, "Escuela", 1)
+        val conector = adminSQLite.writableDatabase
+
+        try {
+            conector.insert("alumnos", null, datos)
+            Toast.makeText(this, "Alumno guardado", Toast.LENGTH_SHORT).show()
+            limpiarCampos()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al guardar: ${e.message}", Toast.LENGTH_SHORT).show()
+        } finally {
+            conector.close()
+        }
+    }
+
+    private fun eliminarAlumno() {
+        val matricula = edt1.text.toString()
+
+        if (matricula.isBlank()) {
+            Toast.makeText(this, "Ingrese una matrícula", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val adminSQLite = AdminSQLite(this, "Escuela", 1)
+        val conector = adminSQLite.writableDatabase
+
+        try {
+            val filasEliminadas = conector.delete("alumnos", "matricula = ?", arrayOf(matricula))
+            if (filasEliminadas > 0) {
+                Toast.makeText(this, "Alumno eliminado", Toast.LENGTH_SHORT).show()
+                limpiarCampos()
+            } else {
+                Toast.makeText(this, "No se encontró el alumno", Toast.LENGTH_SHORT).show()
             }
-            guardarDatos(this@MainActivity, "Escuela", 1, datos)
-            Toast.makeText(this, "Guardado", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al eliminar: ${e.message}", Toast.LENGTH_SHORT).show()
+        } finally {
+            conector.close()
+        }
+    }
+
+    private fun actualizarAlumno() {
+        val matricula = edt1.text.toString()
+        val nombre = edt2.text.toString()
+        val carrera = edt3.text.toString()
+
+        if (matricula.isBlank()) {
+            Toast.makeText(this, "Ingrese una matrícula", Toast.LENGTH_SHORT).show()
+            return
         }
 
-        btn2.setOnClickListener {
-            crearAlertDialog()
+        val datos = ContentValues().apply {
+            put("nombre", nombre)
+            put("carrera", carrera)
         }
 
-        btn3.setOnClickListener {
-            // Eliminar alumno por matrícula
-            val sql = "delete from alumnos where matricula = '${edt1.text.toString()}'"
-            actualizarDatos(this@MainActivity, "Escuela", sql, 1)
-            Toast.makeText(this, "Eliminado si existía", Toast.LENGTH_SHORT).show()
+        val adminSQLite = AdminSQLite(this, "Escuela", 1)
+        val conector = adminSQLite.writableDatabase
+
+        try {
+            val filasActualizadas = conector.update("alumnos", datos, "matricula = ?", arrayOf(matricula))
+            if (filasActualizadas > 0) {
+                Toast.makeText(this, "Alumno actualizado", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "No se encontró el alumno", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al actualizar: ${e.message}", Toast.LENGTH_SHORT).show()
+        } finally {
+            conector.close()
+        }
+    }
+
+    private fun consultarAlumno() {
+        val matricula = edt1.text.toString()
+
+        if (matricula.isBlank()) {
+            Toast.makeText(this, "Ingrese una matrícula", Toast.LENGTH_SHORT).show()
+            return
         }
 
-        btn4.setOnClickListener {
-            // Actualizar nombre por matrícula
-            val CadenaSQL =
-                "update alumnos set nombre = '${edt2.text.toString()}',carrera ='${edt3.text.toString()}' where matricula = '${edt1.text.toString()}'"
-            actualizarDatos(this@MainActivity, "Escuela", CadenaSQL, 1)
-            Toast.makeText(this, "Actualizado", Toast.LENGTH_SHORT).show()
-        }
+        val adminSQLite = AdminSQLite(this, "Escuela", 1)
+        val conector = adminSQLite.readableDatabase
+        var cursor: Cursor? = null
 
-        btn5.setOnClickListener {
-            // Consultar por matrícula y mostrar nombre
-            val cursor = consultarDatos(
-                this@MainActivity,
-                "Escuela",
-                "select * from alumnos where matricula = '${edt1.text.toString()}'",
-                1
+        try {
+            cursor = conector.query(
+                "alumnos",
+                arrayOf("matricula", "nombre", "carrera"),
+                "matricula = ?",
+                arrayOf(matricula),
+                null, null, null
             )
+
             edt2.text.clear()
             edt3.text.clear()
+
+            if (cursor != null && cursor.moveToFirst()) {
+                edt2.setText(cursor.getString(1))
+                edt3.setText(cursor.getString(2))
+                Toast.makeText(this, "Alumno encontrado", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Alumno no encontrado", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error en consulta: ${e.message}", Toast.LENGTH_SHORT).show()
+        } finally {
+            cursor?.close()
+            conector.close()
+        }
+    }
+
+    private fun consultarAlumnoClass() {
+        val matricula = edt1.text.toString()
+
+        if (matricula.isBlank()) {
+            Toast.makeText(this, "Ingrese una matrícula", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val lista = consultarDatosClass("select * from alumnos where matricula = ?", arrayOf(matricula))
+        if (lista.isNotEmpty()) {
+            edt2.setText(lista[0].nombre)
+            edt3.setText(lista[0].carrera)
+            Toast.makeText(this, "Datos cargados", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "No encontrado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun consultarDatosClass(query: String, selectionArgs: Array<String>): MutableList<Alumno> {
+        val listaAlumnos: MutableList<Alumno> = mutableListOf()
+        val adminSQLite = AdminSQLite(this, "Escuela", 1)
+        val conector = adminSQLite.readableDatabase
+        var cursor: Cursor? = null
+
+        try {
+            cursor = conector.rawQuery(query, selectionArgs)
             if (cursor != null) {
                 while (cursor.moveToNext()) {
-                    edt2.setText(cursor.getString(1).toString())
-                    edt3.setText(cursor.getString(2).toString())
+                    val alumno = Alumno(
+                        cursor.getString(0),
+                        cursor.getString(1),
+                        cursor.getString(2)
+                    )
+                    listaAlumnos.add(alumno)
                 }
-                cursor.close()
             }
-            conector?.close()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        } finally {
+            cursor?.close()
+            conector.close()
         }
-
-        btn6.setOnClickListener {
-            // Ejemplo: obtener lista de objetos Alumno y mostrar el primero si existe
-            val lista = consultarDatosClass(
-                this@MainActivity,
-                "Escuela",
-                "select * from alumnos where matricula = '${edt1.text.toString()}'",
-                1
-            )
-            if (lista.isNotEmpty()) {
-                edt2.setText(lista[0].nombre)
-                edt3.setText(lista[0].carrera)
-            } else {
-                Toast.makeText(this, "No encontrado", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun guardarDatos(contexto: Context, bd: String, version: Int, dataSet: ContentValues?) {
-        adminSQLite = AdminSQLite(contexto, bd, version)
-        conector = adminSQLite?.writableDatabase
-        conector?.insert("alumnos", null, dataSet)
-        conector?.close()
-    }
-
-    private fun consultarDatos(contexto: Context, bd: String, CadenaSQL: String, version: Int): Cursor? {
-        adminSQLite = AdminSQLite(contexto, bd, version)
-        conector = adminSQLite?.readableDatabase
-
-        fila = conector?.rawQuery(CadenaSQL, null)
-        if (fila != null) {
-            datosArray = arrayOfNulls(fila!!.count)
-            for (i in 0 until fila!!.count) {
-                fila!!.moveToPosition(i)
-                datosArray[i] = fila!!.getString(1)
-            }
-            // posicionar antes de la primera fila para que quien reciba el cursor pueda usar moveToNext()
-            fila!!.moveToPosition(-1)
-        } else {
-            datosArray = arrayOfNulls(0)
-        }
-        return fila
-    }
-
-    private fun consultarDatosClass(contexto: Context, bd: String, CadenaSQL: String, version: Int): MutableList<Alumno> {
-        val listaAlumnos: MutableList<Alumno> = mutableListOf()
-        adminSQLite = AdminSQLite(contexto, bd, version)
-        conector = adminSQLite?.readableDatabase
-
-        val cursor = conector?.rawQuery(CadenaSQL, null)
-        if (cursor != null) {
-            while (cursor.moveToNext()) {
-                val alumno = Alumno(cursor.getString(0), cursor.getString(1))
-                listaAlumnos.add(alumno)
-            }
-            cursor.close()
-        }
-        conector?.close()
         return listaAlumnos
     }
 
     private fun crearAlertDialog() {
-        val builder = AlertDialog.Builder(this@MainActivity)
-        val datosbd = consultarDatos(this@MainActivity, "Escuela", "select * from alumnos", 1)
+        val alumnos = consultarDatosClass("select * from alumnos", emptyArray())
+        val nombres = alumnos.map { it.nombre }.toTypedArray()
 
-        val infoAlert = if (::datosArray.isInitialized) datosArray else arrayOfNulls<String>(0)
-
+        val builder = AlertDialog.Builder(this)
         builder.setTitle("Alumnos Disponibles")
-            .setItems(infoAlert) { _, which ->
-                // Muestra nombre seleccionado en edt2
-                edt2.setText(infoAlert[which])
-                Toast.makeText(this@MainActivity, infoAlert[which], Toast.LENGTH_SHORT).show()
+            .setItems(nombres) { _, which ->
+                val alumnoSeleccionado = alumnos[which]
+                edt1.setText(alumnoSeleccionado.matricula)
+                edt2.setText(alumnoSeleccionado.nombre)
+                edt3.setText(alumnoSeleccionado.carrera)
+                Toast.makeText(this, "Seleccionado: ${alumnoSeleccionado.nombre}", Toast.LENGTH_SHORT).show()
             }
+            .setNegativeButton("Cerrar", null)
         builder.show()
-
-        datosbd?.close()
-        conector?.close()
     }
 
-    public fun actualizarDatos(contexto: Context, bd: String, CadenaSQL: String, version: Int) {
-        adminSQLite = AdminSQLite(contexto, bd, version)
-        conector = adminSQLite?.writableDatabase
-        // Para operaciones DDL/DML sin resultado
-        conector?.execSQL(CadenaSQL)
-        conector?.close()
+    private fun limpiarCampos() {
+        edt1.text.clear()
+        edt2.text.clear()
+        edt3.text.clear()
     }
 }

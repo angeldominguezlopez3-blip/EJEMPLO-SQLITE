@@ -19,39 +19,39 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Matricula"
-        android:hint="Matricula"
         android:layout_marginBottom="4dp"/>
 
     <EditText
         android:id="@+id/edtext1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:hint="Ingrese matrícula"
         android:layout_marginBottom="16dp"/>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Nombre"
-        android:hint="Nombre"
         android:layout_marginBottom="4dp"/>
 
     <EditText
         android:id="@+id/edtext2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:hint="Ingrese nombre"
         android:layout_marginBottom="16dp"/>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Carrera"
-        android:hint="Carrera"
         android:layout_marginBottom="4dp"/>
 
     <EditText
         android:id="@+id/edtext3"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:hint="Ingrese carrera"
         android:layout_marginBottom="16dp"/>
 
     <Button
